@@ -2,19 +2,25 @@ name: Build and Release EFlasher
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+    inputs:
+      os_name:
+        description: "Pilih OS untuk NanoPC-T2"
+        required: true
+        default: "friendlywrt"
+        type: choice
+        options:
+          - friendlywrt
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up build folder
-        run: mkdir -p build/os
+        run: mkdir -p build os
 
       - name: Install Mega.nz CLI
         run: |
@@ -23,34 +29,37 @@ jobs:
 
       - name: Download OS dari Mega.nz
         run: |
-          cd build/os
+          cd os
           megadl 'https://mega.nz/folder/D0plWKxJ#jDp1Qi1bAf6UKusowVJqsQ'
+          ls -lh
+
+      - name: Build EFlasher image
+        run: |
+          cd os
+          FILE=$(ls *.img* | head -n 1)
+          echo "Pakai file OS: $FILE"
+          tar -xf "$FILE" -C ..
+          cd ..
+          mv s5p4418-eflasher-* build/eflasher-nanopc-t2-${{ github.event.inputs.os_name }}.img
 
       - name: Generate SHA256 checksum
         run: |
-          cd build/os
-          for f in *; do
-            sha256sum "$f" >> SHA256SUMS.txt
-          done
+          cd build
+          sha256sum *.img > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: os-build
-          path: build/os/*
-
-      - name: Get Date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          name: eflasher-image
+          path: build/*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.date.outputs.date }}-${{ github.run_number }}
-          name: "Release ${{ steps.date.outputs.date }}"
-          body: |
-            Release otomatis dibuat pada ${{ steps.date.outputs.date }}.
-            Termasuk OS image hasil download dari Mega.nz + checksum.
-          files: build/os/*
+          tag_name: v${{ github.run_number }}
+          name: "Auto Release (${{ github.event.inputs.os_name }})"
+          body: "Build EFlasher image untuk ${{ github.event.inputs.os_name }}"
+          files: build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
