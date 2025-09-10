@@ -1,12 +1,10 @@
-name: Build and Release EFlasher
+name: Build and Release Images
 
 on:
   push:
     branches:
       - main
-
-permissions:
-  contents: write   # kasih izin bikin release
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,37 +12,57 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up build folder
         run: mkdir -p build
 
-      - name: Check rootfs
+      # Build EFlasher image
+      - name: Build EFlasher image
         run: |
-          if [ ! -d rootfs ]; then
-            echo "No OS found, creating dummy rootfs..."
-            mkdir -p dummy-rootfs/etc
-            echo "NanoPC-T2 Dummy OS" > dummy-rootfs/etc/os-release
-            tar -czf build/rootfs.tar.gz -C dummy-rootfs .
-          else
-            echo "Using existing rootfs..."
-            tar -czf build/rootfs.tar.gz -C rootfs .
-          fi
+          chmod +x build.sh
+          ./build.sh eflasher
+          mv output/eflasher*.img build/
 
-      - name: Create dummy .img
+      # Build SD bootable image
+      - name: Build SD Bootable image
         run: |
-          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=10
-          echo "NanoPC-T2 EFlasher image" | dd of=build/eflasher-nanopc-t2.img conv=notrunc
+          chmod +x build.sh
+          ./build.sh sd
+          mv output/sd*.img build/
 
+      # Generate checksums
+      - name: Generate SHA256 checksums
+        run: |
+          cd build
+          for f in *.img; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
+      # Set release version (date-based)
+      - name: Set Release Version
+        id: version
+        run: echo "RELEASE_TAG=v$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      # Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: eflasher-build
+          name: images
           path: build/*
 
+      # Create GitHub Release
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: auto-release
-          name: "Auto Release"
+          name: Release ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          body: |
+            🚀 Auto-generated release
+
+            - `eflasher` image → untuk flashing dengan eflasher tool
+            - `sd` image → langsung bootable (bisa diburn pakai BalenaEtcher)
+            - `.sha256` files → untuk verifikasi integritas download
           files: build/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
