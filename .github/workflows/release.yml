@@ -18,27 +18,31 @@ jobs:
 
       - name: Download base EFlasher
         run: |
-          # ganti link ini dengan link resmi base eflasher NanoPC-T2
+          # Ganti link ini dengan link resmi base eflasher NanoPC-T2
           wget http://download.friendlyelec.com/nanopc-t2-eflasher.img.gz -O base.img.gz
           gunzip base.img.gz
           mv base.img eflasher.img
 
       - name: Mount and inject OS + logo
         run: |
-          mkdir mnt
-          # offset partisi rootfs biasanya 8192 sektor (8192 * 512 byte)
-          sudo mount -o loop,offset=$((8192*512)) eflasher.img mnt
-          
-          # ganti folder OS bawaan dengan os/ dari repo
-          sudo rm -rf mnt/os/*
-          sudo cp -r os/* mnt/os/
+          mkdir -p mnt_boot mnt_root
 
-          # ganti bootlogo
-          sudo cp assets/bootlogo.bmp mnt/bootlogo.bmp
+          # offset sektor (contoh: boot=2048, rootfs=8192)
+          BOOT_OFFSET=$((2048*512))
+          ROOT_OFFSET=$((8192*512))
 
-          # sync dan unmount
+          # mount boot partition
+          sudo mount -o loop,offset=$BOOT_OFFSET eflasher.img mnt_boot
+          sudo cp assets/bootlogo.bmp mnt_boot/bootlogo.bmp
+          sudo umount mnt_boot
+
+          # mount rootfs partition
+          sudo mount -o loop,offset=$ROOT_OFFSET eflasher.img mnt_root
+          sudo rm -rf mnt_root/os/*
+          sudo cp -r os/* mnt_root/os/
+          sudo umount mnt_root
+
           sync
-          sudo umount mnt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
