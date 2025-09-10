@@ -4,6 +4,16 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      os_name:
+        description: "Pilih OS untuk NanoPC-T2"
+        required: true
+        default: "friendlycore"
+        type: choice
+        options:
+          - friendlycore
+          - lubuntu
+          - friendlywrt
 
 jobs:
   build:
@@ -16,20 +26,18 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      - name: Download FriendlyCore images tarball
+      - name: Download selected OS image
         run: |
-          wget http://112.124.9.243/dvdfiles/S5P4418/images-for-eflasher/friendlycore-images.tgz -O friendlycore-images.tgz
-          tar xzf friendlycore-images.tgz
-
-      - name: Move FriendlyCore eflasher image to build/
-        run: |
-          # Ganti nama file sesuai arsip, misalnya:
-          mv friendlycore/s5p4418-eflasher-friendlycore-4.4-armhf-*.img build/eflasher-nanopc-t2.img
+          OS="${{ github.event.inputs.os_name }}"
+          echo "Mendownload OS: $OS"
+          wget http://112.124.9.243/dvdfiles/S5P4418/images-for-eflasher/${OS}-images.tgz -O ${OS}-images.tgz
+          tar xzf ${OS}-images.tgz
+          mv ${OS}/s5p4418-eflasher-${OS}-*.img build/eflasher-nanopc-t2-${OS}.img
 
       - name: Generate SHA256 checksum
         run: |
           cd build
-          sha256sum eflasher-nanopc-t2.img > SHA256SUMS.txt
+          sha256sum *.img > SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -42,9 +50,9 @@ jobs:
         permissions:
           contents: write
         with:
-          tag_name: auto-release
-          name: Auto Release
-          body: "Build using official FriendlyCore EFlasher image"
+          tag_name: auto-release-${{ github.event.inputs.os_name }}
+          name: "Auto Release (${{ github.event.inputs.os_name }})"
+          body: "Build EFlasher image untuk ${{ github.event.inputs.os_name }}"
           files: build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
