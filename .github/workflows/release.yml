@@ -2,8 +2,8 @@ name: Build and Release EFlasher
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,29 +16,35 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      # === Download Official FriendlyARM OS ===
-      - name: Download FriendlyARM OS image for NanoPC-T2
+      - name: Download FriendlyCore images tarball
         run: |
-          wget http://112.124.9.243/dvdfiles/nanopc-t2/images-for-eflasher/friendlycore-xenial-4.14-armhf-20190725.img.gz -O build/friendlycore.img.gz
-          gunzip build/friendlycore.img.gz
-          mv build/friendlycore.img build/eflasher-nanopc-t2.img
+          wget http://112.124.9.243/dvdfiles/S5P4418/images-for-eflasher/friendlycore-images.tgz -O friendlycore-images.tgz
+          tar xzf friendlycore-images.tgz
+
+      - name: Move FriendlyCore eflasher image to build/
+        run: |
+          # Ganti nama file sesuai arsip, misalnya:
+          mv friendlycore/s5p4418-eflasher-friendlycore-4.4-armhf-*.img build/eflasher-nanopc-t2.img
 
       - name: Generate SHA256 checksum
         run: |
           cd build
-          sha256sum * > SHA256SUMS.txt
+          sha256sum eflasher-nanopc-t2.img > SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nanopc-t2-eflasher
+          name: eflasher-image
           path: build/*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
+        permissions:
+          contents: write
         with:
           tag_name: auto-release
           name: Auto Release
+          body: "Build using official FriendlyCore EFlasher image"
           files: build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
