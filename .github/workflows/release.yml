@@ -3,7 +3,10 @@ name: Build and Release EFlasher
 on:
   push:
     branches:
-      - main   # Jalan otomatis setiap ada push ke branch main
+      - main
+
+permissions:
+  contents: write   # kasih izin bikin release
 
 jobs:
   build:
@@ -43,5 +46,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: auto-release
-          release_name: "Auto Release"
+          name: "Auto Release"
           files: build/*
