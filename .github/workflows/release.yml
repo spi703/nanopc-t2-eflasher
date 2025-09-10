@@ -8,7 +8,7 @@ on:
       os_name:
         description: "Pilih OS untuk NanoPC-T2"
         required: true
-        default: "friendlycore"
+        default: "friendlywrt"
         type: choice
         options:
           - friendlycore
@@ -18,8 +18,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # ✅ pindahkan ke sini
 
     steps:
       - name: Checkout repository
@@ -28,18 +26,37 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      - name: Download selected OS image
+      - name: Install Mega.nz CLI
         run: |
+          sudo apt-get update
+          sudo apt-get install -y megatools
+
+      - name: Download OS dari Mega.nz
+        run: |
+          set -e
+          MEGA_URL="https://mega.nz/folder/D0plWKxJ#jDp1Qi1bAf6UKusowVJqsQ"
           OS="${{ github.event.inputs.os_name }}"
-          echo "Mendownload OS: $OS"
-          wget http://112.124.9.243/dvdfiles/S5P4418/images-for-eflasher/${OS}-images.tgz -O ${OS}-images.tgz
-          tar xzf ${OS}-images.tgz
-          mv ${OS}/s5p4418-eflasher-${OS}-*.img build/eflasher-nanopc-t2-${OS}.img
+
+          echo "📥 Mendownload OS $OS dari Mega.nz ..."
+          megadl --path build "$MEGA_URL"
+
+          echo "📂 File hasil download:"
+          ls -lh build
+
+          FILE=$(find build -type f -iname "*${OS}*.img*" | head -n 1)
+          if [ -z "$FILE" ]; then
+            echo "❌ File OS untuk $OS tidak ditemukan di Mega.nz"
+            exit 1
+          fi
+
+          echo "✅ File ditemukan: $FILE"
+          mv "$FILE" build/eflasher-nanopc-t2.img
 
       - name: Generate SHA256 checksum
         run: |
           cd build
-          sha256sum *.img > SHA256SUMS.txt
+          sha256sum eflasher-nanopc-t2.img > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
