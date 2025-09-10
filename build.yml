@@ -1,0 +1,46 @@
+name: Build NanoPC-T2 EFlasher
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # agar bisa bikin release
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Create rootfs tarball
+      run: |
+        tar -czf nanopc-t2-rootfs.tar.gz -C rootfs .
+
+    - name: Create dummy eflasher image
+      run: |
+        dd if=/dev/zero of=eflasher-nanopc-t2.img bs=1M count=16
+        mkfs.ext4 -F eflasher-nanopc-t2.img
+        mkdir mnt
+        sudo mount -o loop eflasher-nanopc-t2.img mnt
+        sudo cp -r rootfs/* mnt/
+        sudo umount mnt
+
+    - name: Upload artifacts (Actions tab)
+      uses: actions/upload-artifact@v3
+      with:
+        name: nanopc-t2-eflasher-build
+        path: |
+          nanopc-t2-rootfs.tar.gz
+          eflasher-nanopc-t2.img
+
+    - name: Upload release (Releases tab)
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: "EFlasher Build #${{ github.run_number }}"
+        files: |
+          nanopc-t2-rootfs.tar.gz
+          eflasher-nanopc-t2.img
