@@ -18,6 +18,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # ✅ pindahkan ke sini
 
     steps:
       - name: Checkout repository
@@ -47,8 +49,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
-        permissions:
-          contents: write
         with:
           tag_name: auto-release-${{ github.event.inputs.os_name }}
           name: "Auto Release (${{ github.event.inputs.os_name }})"
