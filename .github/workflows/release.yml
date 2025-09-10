@@ -2,11 +2,8 @@ name: Build and Release EFlasher
 
 on:
   push:
-    branches:
-      - main
-
-permissions:
-  contents: write   # IZIN untuk membuat & update release
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,33 +16,25 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      - name: Compress rootfs
+      - name: Download Armbian image for NanoPC-T2
         run: |
-          tar -czf build/rootfs.tar.gz rootfs || echo "No rootfs folder found"
+          wget https://armbian.tnahosting.net/dl/nanopc-t2/Armbian_24.8.1_Nanopc-t2_bookworm_current_6.6.47.img.xz -O build/armbian.img.xz
+          unxz build/armbian.img.xz
+          mv build/Armbian_24.8.1_Nanopc-t2_bookworm_current_6.6.47.img build/eflasher-nanopc-t2.img
 
-      - name: Build EFlasher image
-        run: |
-          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=10
-          echo "Dummy image created"
-
-      - name: Build SD Bootable image
-        run: echo "Simulasi build SD image"
-
-      - name: Generate SHA256 checksums
+      - name: Generate SHA256 checksum
         run: sha256sum build/* > build/SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: eflasher-artifacts
+          name: eflasher-nanopc-t2
           path: build/*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: auto-release
-          name: Auto Release
-          body: "Update release.yml"
           files: build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
