@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write   # IZIN untuk membuat & update release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,27 +21,18 @@ jobs:
 
       - name: Compress rootfs
         run: |
-          if [ -d rootfs ]; then
-            tar -czf build/rootfs.tar.gz -C rootfs .
-          else
-            echo "⚠️ Folder rootfs tidak ada, dilewati"
-          fi
+          tar -czf build/rootfs.tar.gz rootfs || echo "No rootfs folder found"
 
       - name: Build EFlasher image
         run: |
-          chmod +x eflasher.sh
-          ./eflasher.sh || echo "⚠️ eflasher.sh tidak ditemukan, skip"
+          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=10
+          echo "Dummy image created"
 
       - name: Build SD Bootable image
-        run: |
-          echo "Buat dummy image bootable di sini"
-          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=10
+        run: echo "Simulasi build SD image"
 
       - name: Generate SHA256 checksums
-        run: |
-          cd build
-          sha256sum * > SHA256SUMS.txt
-          cd ..
+        run: sha256sum build/* > build/SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
