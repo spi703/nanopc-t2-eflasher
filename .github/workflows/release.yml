@@ -1,10 +1,9 @@
-name: Build and Release Images
+name: Build and Release EFlasher
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   build:
@@ -17,52 +16,34 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      # Build EFlasher image
       - name: Build EFlasher image
         run: |
-          chmod +x build.sh
-          ./build.sh eflasher
-          mv output/eflasher*.img build/
+          chmod +x eflasher.sh
+          ./eflasher.sh
 
-      # Build SD bootable image
-      - name: Build SD Bootable image
-        run: |
-          chmod +x build.sh
-          ./build.sh sd
-          mv output/sd*.img build/
-
-      # Generate checksums
       - name: Generate SHA256 checksums
         run: |
-          cd build
-          for f in *.img; do
-            sha256sum "$f" > "$f.sha256"
-          done
+          sha256sum *.img > SHA256SUMS
+          cat SHA256SUMS
 
-      # Set release version (date-based)
       - name: Set Release Version
-        id: version
-        run: echo "RELEASE_TAG=v$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        id: vars
+        run: echo "RELEASE_VERSION=auto-release" >> $GITHUB_ENV
 
-      # Upload artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: images
-          path: build/*
+          name: eflasher-image
+          path: |
+            *.img
+            SHA256SUMS
 
-      # Create GitHub Release
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ env.RELEASE_TAG }}
-          tag_name: ${{ env.RELEASE_TAG }}
-          body: |
-            🚀 Auto-generated release
-
-            - `eflasher` image → untuk flashing dengan eflasher tool
-            - `sd` image → langsung bootable (bisa diburn pakai BalenaEtcher)
-            - `.sha256` files → untuk verifikasi integritas download
-          files: build/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: Auto Release
+          tag_name: auto-release
+          body: "Update release.yml"
+          files: |
+            *.img
+            SHA256SUMS
