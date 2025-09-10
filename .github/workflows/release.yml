@@ -1,15 +1,7 @@
-name: Build and Release EFlasher
+name: Build EFlasher Image
 
 on:
   workflow_dispatch:
-    inputs:
-      os_name:
-        description: "Pilih OS untuk NanoPC-T2"
-        required: true
-        default: "friendlywrt"
-        type: choice
-        options:
-          - friendlywrt
 
 jobs:
   build:
@@ -17,49 +9,34 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up build folder
-        run: mkdir -p build os
-
-      - name: Install Mega.nz CLI
+      - name: Setup dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y megatools
+          sudo apt-get install -y p7zip-full unzip xz-utils
 
-      - name: Download OS dari Mega.nz
+      - name: Prepare EFlasher
         run: |
-          cd os
-          megadl 'https://mega.nz/folder/D0plWKxJ#jDp1Qi1bAf6UKusowVJqsQ'
-          ls -lh
+          mkdir -p eflasher
+          cp -r os/* eflasher/
+
+      - name: Replace bootlogo
+        run: |
+          # Ganti bootlogo default dengan logo SPI703
+          cp assets/bootlogo.bmp eflasher/bootlogo.bmp
 
       - name: Build EFlasher image
         run: |
-          cd os
-          FILE=$(ls *.img* | head -n 1)
-          echo "Pakai file OS: $FILE"
-          tar -xf "$FILE" -C ..
-          cd ..
-          mv s5p4418-eflasher-* build/eflasher-nanopc-t2-${{ github.event.inputs.os_name }}.img
-
-      - name: Generate SHA256 checksum
-        run: |
-          cd build
-          sha256sum *.img > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: eflasher-image
-          path: build/*
+          7z a -timg eflasher.img eflasher/*
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: "Auto Release (${{ github.event.inputs.os_name }})"
-          body: "Build EFlasher image untuk ${{ github.event.inputs.os_name }}"
-          files: build/*
+          tag_name: eflasher-${{ github.run_number }}
+          name: "EFlasher Build ${{ github.run_number }}"
+          draft: false
+          prerelease: false
+          files: eflasher.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
