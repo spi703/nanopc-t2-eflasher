@@ -1,4 +1,4 @@
-name: Build EFlasher Image
+name: Build Custom EFlasher
 
 on:
   workflow_dispatch:
@@ -14,21 +14,31 @@ jobs:
       - name: Setup dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full unzip xz-utils
+          sudo apt-get install -y p7zip-full unzip xz-utils wget mount util-linux
 
-      - name: Prepare EFlasher
+      - name: Download base EFlasher
         run: |
-          mkdir -p eflasher
-          cp -r os/* eflasher/
+          # ganti link ini dengan link resmi base eflasher NanoPC-T2
+          wget http://download.friendlyelec.com/nanopc-t2-eflasher.img.gz -O base.img.gz
+          gunzip base.img.gz
+          mv base.img eflasher.img
 
-      - name: Replace bootlogo
+      - name: Mount and inject OS + logo
         run: |
-          # Ganti bootlogo default dengan logo SPI703
-          cp assets/bootlogo.bmp eflasher/bootlogo.bmp
+          mkdir mnt
+          # offset partisi rootfs biasanya 8192 sektor (8192 * 512 byte)
+          sudo mount -o loop,offset=$((8192*512)) eflasher.img mnt
+          
+          # ganti folder OS bawaan dengan os/ dari repo
+          sudo rm -rf mnt/os/*
+          sudo cp -r os/* mnt/os/
 
-      - name: Build EFlasher image
-        run: |
-          7z a -timg eflasher.img eflasher/*
+          # ganti bootlogo
+          sudo cp assets/bootlogo.bmp mnt/bootlogo.bmp
+
+          # sync dan unmount
+          sync
+          sudo umount mnt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
