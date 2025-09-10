@@ -8,16 +8,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Create rootfs.tar.gz
+      - name: Set up build folder
+        run: mkdir -p build
+
+      - name: Check rootfs
         run: |
-          mkdir -p build
-          if [ -d os/demo-os ]; then
-            tar -czf build/rootfs.tar.gz -C os/demo-os .
+          if [ -d "rootfs" ]; then
+            echo "Found rootfs, creating build/rootfs.tar.gz..."
+            tar -czf build/rootfs.tar.gz -C rootfs .
           else
             echo "No OS found, creating dummy rootfs..."
             mkdir -p dummy-rootfs/etc
@@ -31,13 +33,13 @@ jobs:
           echo "NanoPC-T2 EFlasher image" | dd of=build/eflasher-nanopc-t2.img conv=notrunc
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: eflasher-build
           path: build/*
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: build/*
         env:
