@@ -2,8 +2,8 @@ name: Build and Release EFlasher
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build:
@@ -16,25 +16,29 @@ jobs:
       - name: Set up build folder
         run: mkdir -p build
 
-      - name: Download Armbian image for NanoPC-T2
+      # === Download Official FriendlyARM OS ===
+      - name: Download FriendlyARM OS image for NanoPC-T2
         run: |
-          wget https://armbian.tnahosting.net/dl/nanopc-t2/Armbian_24.8.1_Nanopc-t2_bookworm_current_6.6.47.img.xz -O build/armbian.img.xz
-          unxz build/armbian.img.xz
-          mv build/Armbian_24.8.1_Nanopc-t2_bookworm_current_6.6.47.img build/eflasher-nanopc-t2.img
+          wget http://112.124.9.243/dvdfiles/nanopc-t2/images-for-eflasher/friendlycore-xenial-4.14-armhf-20190725.img.gz -O build/friendlycore.img.gz
+          gunzip build/friendlycore.img.gz
+          mv build/friendlycore.img build/eflasher-nanopc-t2.img
 
       - name: Generate SHA256 checksum
-        run: sha256sum build/* > build/SHA256SUMS.txt
+        run: |
+          cd build
+          sha256sum * > SHA256SUMS.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: eflasher-nanopc-t2
+          name: nanopc-t2-eflasher
           path: build/*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: auto-release
+          name: Auto Release
           files: build/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
