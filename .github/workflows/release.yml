@@ -3,11 +3,12 @@ name: Build and Release EFlasher
 on:
   push:
     branches:
-      - main
+      - main   # Jalan otomatis setiap ada push ke branch main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,19 +18,19 @@ jobs:
 
       - name: Check rootfs
         run: |
-          if [ -d "rootfs" ]; then
-            echo "Found rootfs, creating build/rootfs.tar.gz..."
-            tar -czf build/rootfs.tar.gz -C rootfs .
-          else
+          if [ ! -d rootfs ]; then
             echo "No OS found, creating dummy rootfs..."
             mkdir -p dummy-rootfs/etc
-            echo "NanoPC-T2 Dummy OS" > dummy-rootfs/etc/version
+            echo "NanoPC-T2 Dummy OS" > dummy-rootfs/etc/os-release
             tar -czf build/rootfs.tar.gz -C dummy-rootfs .
+          else
+            echo "Using existing rootfs..."
+            tar -czf build/rootfs.tar.gz -C rootfs .
           fi
 
       - name: Create dummy .img
         run: |
-          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=8
+          dd if=/dev/zero of=build/eflasher-nanopc-t2.img bs=1M count=10
           echo "NanoPC-T2 EFlasher image" | dd of=build/eflasher-nanopc-t2.img conv=notrunc
 
       - name: Upload artifacts
@@ -41,6 +42,6 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: auto-release
+          release_name: "Auto Release"
           files: build/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
